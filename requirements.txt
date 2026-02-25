@@ -1,0 +1,7 @@
+click
+sentence-transformers
+faiss-cpu
+numpy
+pymupdf
+python-docx
+torch
