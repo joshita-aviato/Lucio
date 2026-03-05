@@ -1,0 +1,22 @@
+[project]
+name = "lucio"
+version = "0.1.0"
+description = "Lucio AI Pipeline - Document processing and semantic search"
+dependencies = [
+    "click",
+    "sentence-transformers",
+    "faiss-cpu",
+    "numpy",
+    "pymupdf",
+    "python-docx",
+    "torch",
+    "pandas",
+    "openpyxl"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

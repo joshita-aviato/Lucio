@@ -1,252 +1,189 @@
-# Lucio AI Ingestion Pipeline
+# Lucio AI — Document Retrieval & QA Pipeline
 
-**High-Performance Document Intelligence System for Lucio Challenge 2026**
-
----
-
-## Executive Summary
-
-The Lucio AI Pipeline represents a breakthrough in document processing technology, achieving **80% retrieval accuracy** while processing 200 documents and answering 15 complex questions in just **15.65 seconds** - well under the 30-second competition constraint. This system demonstrates advanced hybrid search algorithms, intelligent query expansion, and performance engineering at scale.
-
-### Key Metrics
-- **80% Retrieval Accuracy** (target achieved exactly)
-- **15.65 seconds** total execution time (46% safety margin)
-- **100% test coverage** with robust validation
-- **200 document capacity** with bounded memory usage
+A fast, lightweight document retrieval and question-answering pipeline designed to ingest hundreds of documents and answer natural language queries — all within a strict **30-second total runtime budget**.
 
 ---
 
-## Technical Architecture
+## The Problem
 
-### System Overview
+Standard RAG (Retrieval-Augmented Generation) pipelines rely on neural embedding models like `all-MiniLM-L6-v2` to compute semantic similarity between queries and document chunks. This works well when latency isn't a constraint, but introduces a hard dependency:
 
-The pipeline implements a two-phase architecture optimized for extreme performance:
+- **Model loading overhead**: `SentenceTransformer` makes 15+ HTTP HEAD requests to HuggingFace Hub on every initialization (~4s even from cache).
+- **Encoding cost**: Embedding 672 chunks takes ~7s on CPU.
+- **Double loading**: If both ingestion and query phases need the model, that's ~8–10s burned on initialization alone.
+
+For a pipeline that must ingest 239 documents, build an index, and answer 7 questions in under 30 seconds, this is fatal. Our first attempt with neural reranking hit **34.91s**. Moving embeddings to ingest-time pre-computation still hit **29.2s** and crashed.
+
+## The Solution
+
+We replaced the neural embedding model with a **5-signal composite retrieval function** that achieves semantic-quality ranking using only data structures that can be built and loaded in milliseconds.
+
+### Architecture
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Document      │    │   Processing     │    │   Storage       │
-│   Ingestion     │───▶│   Pipeline       │───▶│   Layer         │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-    PDF/DOCX/TXT           Chunking &          FAISS Index
-    Files (200)         Embedding Engine      + Chunks
+┌─────────────────────────────────────────────────┐
+│                   INGEST PHASE                   │
+│                                                  │
+│  PDF/DOCX/TXT ──► Clean ──► Domain-Aware Chunk  │
+│                                                  │
+│  Chunks ──► BM25 Inverted Index (JSON)           │
+│         ──► TF-IDF Vector Matrix (numpy .npz)    │
+│         ──► Vocabulary Map (JSON)                 │
+└─────────────────────────────────────────────────┘
+                        │
+                   saved to disk
+                        │
+┌─────────────────────────────────────────────────┐
+│                   QUERY PHASE                    │
+│                                                  │
+│  Load JSON + numpy (~0.1s, zero model loading)   │
+│                                                  │
+│  For each question:                              │
+│    ├─ BM25 candidate retrieval (top 50)          │
+│    ├─ 5-signal composite reranking               │
+│    │    ├─ Signal 1: BM25 score (0.40)           │
+│    │    ├─ Signal 2: TF-IDF cosine sim (0.25)    │
+│    │    ├─ Signal 3: Entity overlap (0.15)        │
+│    │    ├─ Signal 4: Chunk quality (0.10)         │
+│    │    └─ Signal 5: Category tag boost           │
+│    └─ Extractive answer with deduplication       │
+└─────────────────────────────────────────────────┘
 ```
 
-### Phase 1: Document Ingestion Engine
+### The 5 Retrieval Signals
 
-**Core Components:**
+| # | Signal | What It Does | Why It Matters |
+|---|--------|-------------|----------------|
+| 1 | **BM25** | Lexical term matching with document length normalization and term frequency saturation | Strong baseline for keyword-heavy queries; handles exact term matches that semantic models can miss |
+| 2 | **TF-IDF Cosine Similarity** | Builds IDF-weighted term vectors from the BM25 vocabulary, computes cosine similarity via normalized dot product | Provides a geometric similarity measure — captures that a chunk mentioning "kodak" 10 times is more relevant than one mentioning it once. Unlike Jaccard (set overlap), this preserves magnitude |
+| 3 | **Entity & Number Overlap** | Extracts named entities, dollar amounts, years, and quarter references (Q1–Q4) from the query; scores chunks by how many appear | Precision signal for fact-seeking queries like "What was KFIN's revenue in 2021?" — ensures chunks containing "KFIN", "2021", and dollar figures rank higher |
+| 4 | **Chunk Quality** | Penalizes boilerplate (safe harbor disclaimers, GAAP reconciliation notices), rewards information density (named entities, numbers), penalizes repetitive content | Filters out the chunks that BM25 loves but humans hate — legal disclaimers score high on financial keywords but contain zero useful information |
+| 5 | **Category Tag Boost** | Detects query category (revenue/executive/risk/business/earnings) and boosts chunks tagged with domain markers like `[FINANCIAL TABLE]`, `[EXECUTIVE]`, `[EARNINGS CALL]` | Leverages document structure — a question about executives should prefer the dedicated executive profile chunk over a chunk that happens to mention a name in passing |
 
-1. **Multi-Format Document Parser**
-   - **PDF Processing**: PyMuPDF (fitz) for 10x faster parsing vs pypdf
-   - **DOCX Processing**: python-docx with paragraph-level extraction
-   - **TXT Processing**: Direct text ingestion with encoding detection
+### Domain-Aware Chunking
 
-2. **Intelligent Chunking Algorithm**
-   ```python
-   # Advanced chunking with sentence boundary detection
-   def chunk_text(text, chunk_size=600, overlap=150):
-       # 600-word chunks with 150-word overlap
-       # Smart sentence boundary preservation
-       # Semantic coherence optimization
-   ```
+Standard chunking splits text at fixed word boundaries, destroying the relationships between labels and values in financial tables, and scattering executive bios across multiple chunks. We use three specialized extractors that run during ingestion:
 
-3. **High-Performance Embedding System**
-   - **Model**: all-MiniLM-L6-v2 (optimized for speed/accuracy balance)
-   - **Batch Processing**: Single-pass embedding of all chunks
-   - **Memory Management**: Bounded processing prevents OOM errors
+**Executive Profile Extraction** detects `Name, Title` patterns and `Name, age XX` patterns in the text, then extracts surrounding context to create dedicated `[EXECUTIVE]` chunks. This ensures that a question about the CFO retrieves a chunk that contains the name, title, age, and tenure in one place.
 
-4. **Vector Index Storage**
-   - **FAISS CPU Index**: Optimized for similarity search
-   - **Disk Persistence**: Fast reload capability
-   - **Metadata Tracking**: Execution time and performance metrics
+**Financial Table Preservation** detects contiguous lines with financial labels (revenue, income, assets) paired with dollar amounts, and joins them into unified `[FINANCIAL TABLE]` chunks. This preserves the label-value relationship that standard chunking destroys.
 
-### Phase 2: Query Processing Engine
+**Earnings Call Speaker Segmentation** detects earnings call transcripts by marker phrases, splits by speaker turns, and creates `[EARNINGS CALL - Speaker Name]` chunks. Guidance and outlook statements get their own `[EARNINGS GUIDANCE]` chunks.
 
-**Advanced Search Architecture:**
+### Query Expansion
 
-1. **Hybrid Search Algorithm**
-   ```python
-   # Dynamic scoring: 60% semantic + 40% keyword
-   def hybrid_search(query, top_k=10):
-       semantic_results = vector_search(query, top_k * 3)
-       keyword_boosted = apply_keyword_scoring(semantic_results)
-       return rerank_and_filter(keyword_boosted, top_k)
-   ```
+Each query is expanded with category-specific synonyms before BM25 retrieval. For example, a query containing "revenue" is expanded with: sales, income, earnings, profit, billion, million, quarter, fiscal, consolidated, etc. This bridges vocabulary mismatch — a document saying "net sales" will be retrieved for a query about "revenue." The expansion dictionary covers 25+ trigger categories including financial, legal, regulatory, and entity-specific terms.
 
-2. **Intelligent Query Expansion**
-   ```python
-   # Domain-specific term enhancement
-   query_expansions = {
-       "revenue": ["sales", "income", "earnings", "financial", "results"],
-       "executives": ["ceo", "cfo", "president", "director", "officer"],
-       "risk": ["uncertainty", "threat", "challenge", "material", "adverse"]
-   }
-   ```
+### Extractive Answer with Deduplication
 
-3. **Context Assembly System**
-   - **Top-K Retrieval**: 10 most relevant chunks per query
-   - **Context Window**: 6000-character assembly
-   - **Relevance Ranking**: Dynamic scoring with keyword density
+After retrieving top chunks, we extract the most relevant sentences using a scoring function that considers:
+
+- Query keyword overlap
+- Category-specific pattern matching (e.g., `$X billion` for revenue queries)
+- Entity and title pattern detection
+- Boilerplate penalty (sentences matching safe harbor / disclaimer patterns get -6.0)
+- Deduplication by first 80 characters to prevent the same sentence appearing multiple times
 
 ---
 
-## Performance Engineering
+## Performance
 
-### Speed Optimizations
+| Metric | Value |
+|--------|-------|
+| Ingestion (239 docs, 672 chunks) | ~15s |
+| Query (7 questions) | ~0.4s |
+| **Total Runtime** | **~15.4s** |
+| Time Budget | 30s |
+| **Headroom** | **~15s** |
 
-| Optimization | Implementation | Impact |
-|--------------|----------------|---------|
-| **Thread Control** | `OMP_NUM_THREADS=1`, `TOKENIZERS_PARALLELISM=false` | Prevents macOS freezes |
-| **Batch Embedding** | Single-pass processing of all queries | 3x faster than sequential |
-| **Efficient Caching** | Local FAISS index + chunk storage | Sub-second reload |
-| **Smart Timeouts** | 29s hard limit, 25s warnings | Guaranteed completion |
-| **Memory Bounding** | `MAX_CHUNKS_PER_DOC=10` | Prevents OOM errors |
+The query phase is fast because it loads only JSON and a numpy matrix — no model initialization, no HTTP requests, no GPU/CPU inference. The TF-IDF matrix for 672 chunks × ~1000 terms is roughly 2.6MB and loads in ~10ms.
 
-### Accuracy Enhancements
+### Retrieval Accuracy
 
-| Technique | Implementation | Accuracy Gain |
-|-----------|----------------|----------------|
-| **Hybrid Search** | Semantic + keyword scoring | +15% over pure semantic |
-| **Query Expansion** | Domain-specific synonyms | +8% recall improvement |
-| **Dynamic Weighting** | Position-aware scoring | +5% precision boost |
-| **Partial Matching** | Word variation capture | +3% coverage increase |
-| **Context Preservation** | Larger chunk sizes | +4% semantic coherence |
-
----
-
-## Benchmark Results
-
-### Competition Performance Metrics
-
-```
-=====================================================================================
-                         LUCIO AI PIPELINE BENCHMARK REPORT                          
-=====================================================================================
-
-[ 1. PERFORMANCE METRICS ]
---------------------------------------------------
-Phase                | Time (Seconds)     | % of Limit
---------------------------------------------------
-Ingestion Phase      |       9.30s        |     31%
-Query Phase          |       6.35s        |     21%
---------------------------------------------------
-TOTAL RUNTIME        |      15.65s        |     52%
-STATUS               |   PASS (< 30s)     |   48% Buffer
---------------------------------------------------
-
-[ 2. RETRIEVAL ACCURACY METRICS ]
--------------------------------------------------------------------------------------
-Question Category                           | Score   | Performance
--------------------------------------------------------------------------------------
-Financial Reporting (Revenue)              | 100%    | Perfect
-Business Operations (Core Business)         | 91%     | Excellent
-Corporate Communications (Earnings Call)    | 82%     | Strong
-Leadership Identification (Executives)     | 83%     | Strong
-Risk Assessment (Risk Factors)              | 42%     | Moderate
--------------------------------------------------------------------------------------
-AVERAGE KEYWORD RETRIEVAL SCORE              |     80% | Target Achieved
-=====================================================================================
-```
-
-### Performance Validation
-
-- **Consistency**: ±0.3s variance across 10+ runs
-- **Scalability**: Linear performance up to 500 documents
-- **Memory Efficiency**: <500MB peak usage for 200 documents
-- **Error Rate**: 0% crashes, 100% successful completions
+| Question Category | Score | Key Matched Terms |
+|-------------------|-------|-------------------|
+| Revenue figures | 50% | billion, financial, earnings, quarter, results |
+| Key executives | 60% | ceo, cfo, director, executive, management, board |
+| Risk factors | 56% | factor, uncertainty, forward-looking, material |
+| Earnings call | 64% | call, earnings, quarter, q3, conference |
+| Core business | 45% | business, platform, app, services, industry |
+| **Average** | **55%** | |
 
 ---
 
-## Implementation Details
+## Is This Innovative?
 
-### Core Algorithms
+**Honest answer: the individual components are not novel.** BM25, TF-IDF cosine similarity, entity extraction, and query expansion are established IR techniques from the 2000s–2010s. Production search systems at companies like Elasticsearch, Airbnb, and LinkedIn have used weighted combinations of lexical and statistical signals for years.
 
-#### 1. Hybrid Search Implementation
-```python
-def hybrid_search(index, chunks, query_emb, query_text, top_k=10):
-    # Multi-strategy search combining semantic and lexical approaches
-    semantic_candidates = index.search(query_emb, top_k * 3)
-    
-    expanded_keywords = expand_query_terms(query_text)
-    scored_results = []
-    
-    for idx, distance in semantic_candidates:
-        chunk = chunks[idx].lower()
-        
-        # Advanced keyword scoring with partial matches
-        keyword_score = calculate_keyword_relevance(chunk, expanded_keywords)
-        semantic_score = 1.0 / (1.0 + distance)
-        
-        # Dynamic weighting based on result position
-        if position < 3:
-            combined_score = 0.6 * semantic_score + 0.4 * keyword_score
-        else:
-            combined_score = 0.4 * semantic_score + 0.6 * keyword_score
-            
-        scored_results.append((combined_score, idx))
-    
-    return rerank(scored_results)[:top_k]
+**What's worth noting is the specific engineering tradeoff:**
+
+Most modern RAG pipelines treat neural embeddings as a non-negotiable component. The standard advice is "use a dense retriever" and the standard architecture is `embed → FAISS → rerank`. This works when you have seconds to spare on model loading, but it creates a hard floor on latency that no amount of optimization can remove — `SentenceTransformer.__init__()` will always make network calls, load weights, and initialize a tokenizer.
+
+This pipeline demonstrates that for **structured, domain-specific documents** (SEC filings, earnings calls, legal agreements), a well-constructed composite of cheap signals can match or approach neural retrieval quality. The key insight is that financial and legal documents have predictable structure (Item numbers, speaker turns, table layouts) and predictable vocabulary (specific terminology per section type). These properties make statistical signals more effective than they would be on general web text, where neural models have a larger advantage.
+
+The TF-IDF cosine signal specifically is a meaningful upgrade over raw BM25. BM25 returns a relevance score but doesn't provide a way to compare query-document similarity geometrically. TF-IDF vectors, built from the same IDF statistics BM25 already computed, give us a proper vector space where cosine similarity captures both term importance and term frequency — at the cost of one matrix multiply per query (~0.05ms).
+
+**Where this approach would fall short:** On general-domain, open-vocabulary questions where the query uses different words than the document (e.g., "Who runs the company?" → needs to match "Chief Executive Officer"), neural embeddings would significantly outperform this pipeline. The query expansion dictionary partially addresses this but is inherently limited to anticipated vocabulary.
+
+---
+
+## Project Structure
+
+```
+├── lucio_cli.py          # Main pipeline: ingest + run commands
+├── benchmark.py          # Performance benchmarking
+├── data/                 # Input documents (PDF, DOCX, TXT)
+│   └── Testing Set Questions.xlsx
+├── chunks.json           # Extracted text chunks
+├── tfidf_index.json      # BM25 inverted index
+├── tfidf_vectors.npz     # Pre-computed TF-IDF matrix
+├── tfidf_vocab.json      # Term → index vocabulary
+├── metadata.json         # Ingestion metadata
+└── README.md
 ```
 
-#### 2. Intelligent Chunking Strategy
-```python
-def chunk_text(text, chunk_size=600, overlap=150):
-    words = text.split()
-    chunks = []
-    
-    for i in range(0, len(words), chunk_size - overlap):
-        chunk_words = words[i:i + chunk_size]
-        
-        # Smart boundary detection for semantic coherence
-        if len(chunk_words) == chunk_size:
-            best_break = find_sentence_boundary(chunk_words)
-            if best_break and best_break > chunk_size * 0.7:
-                chunk_words = chunk_words[:best_break]
-        
-        chunk = " ".join(chunk_words).strip()
-        if chunk:
-            chunks.append(chunk)
-    
-    return chunks
+## Usage
+
+```bash
+# Ingest documents and build indices
+uv run python lucio_cli.py ingest
+
+# Run queries
+uv run python lucio_cli.py run
+
+# Run full benchmark
+uv run python benchmark.py
 ```
 
-#### 3. Query Expansion System
-```python
-def expand_query(query):
-    expansions = {
-        "revenue": ["sales", "income", "earnings", "financial", "results"],
-        "executives": ["ceo", "cfo", "president", "director", "officer", "management"],
-        "risk": ["uncertainty", "threat", "challenge", "material", "adverse", "litigation"],
-        "business": ["operations", "platform", "services", "industry", "sector"]
-    }
-    
-    expanded = query
-    for key, terms in expansions.items():
-        if key in query.lower():
-            expanded += " " + " ".join(terms)
-    
-    return expanded
-```
+## Dependencies
 
-### System Configuration
+- `click` — CLI framework
+- `numpy` — TF-IDF matrix operations
+- `pandas` + `openpyxl` — Reading question files
+- `PyMuPDF` (`fitz`) — PDF text extraction
+- `python-docx` — DOCX text extraction
 
-**Performance Parameters:**
-```python
-MAX_CHUNKS_PER_DOC = 10      # Memory bounding
-CHUNK_SIZE = 600            # Optimal for context
-CHUNK_OVERLAP = 150         # Semantic coherence
-TOP_K_RETRIEVAL = 10        # Coverage vs precision
-CONTEXT_WINDOW = 6000       # Comprehensive answers
-MAX_TIME_SECONDS = 29       # Safety margin
-```
+No neural model dependencies (`sentence-transformers`, `torch`, `transformers`) are required at runtime.
 
-**Environment Optimization:**
-```python
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-```
+---
+
+## Changelog
+
+### v3 — TF-IDF Composite (Current)
+- Replaced neural embeddings with TF-IDF cosine similarity built from BM25 IDF statistics
+- 5-signal composite retrieval: BM25 + TF-IDF cosine + entity overlap + chunk quality + tag boost
+- Eliminated all `sentence-transformers` / `torch` dependencies from runtime
+- Total runtime: ~15.4s (was 34.9s in v1)
+
+### v2 — Pre-computed Embeddings (Failed)
+- Moved `SentenceTransformer` encoding to ingest phase
+- Saved embeddings as numpy array for fast loading in query phase
+- Still required model loading in both phases → 29.2s ingest alone, exceeded budget
+
+### v1 — Neural Hybrid (Failed)
+- BM25 candidate retrieval → `SentenceTransformer` reranking
+- Model loading (~15s) + encoding blew the 30s budget
+- Answer quality poor: boilerplate sentences ranked high, massive duplication
 
 ---
 
