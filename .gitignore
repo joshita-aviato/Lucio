@@ -3,6 +3,8 @@ chunks.json
 tfidf_index.json
 metadata.json
 faiss_index.bin
+tfidf_vectors.npz
+tfidf_vocab.json
 
 # Python cache
 __pycache__/
