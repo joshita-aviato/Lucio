@@ -1,1 +1,1 @@
-{"ingest_time": 4.331645965576172, "extraction_time": 4.227919816970825, "indexing_time": 0.0507969856262207, "doc_count": 18, "chunk_count": 192, "vocab_size": 3610}
+{"ingest_time": 1.7310099601745605, "extraction_time": 1.6227571964263916, "indexing_time": 0.05375099182128906, "doc_count": 18, "chunk_count": 192, "vocab_size": 3750}
