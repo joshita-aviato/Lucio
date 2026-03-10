@@ -5,3 +5,6 @@ numpy
 pymupdf
 python-docx
 torch
+google-genai
+pandas
+openpyxl
