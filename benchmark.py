@@ -4,7 +4,8 @@ import json
 import subprocess
 import re
 import sys
-from typing import Set
+from typing import Set, List, Dict, Tuple
+
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -73,6 +74,98 @@ def score_answer(predicted: str, ground_truth: str) -> dict:
             "composite": round(composite, 3)}
 
 
+# ==============================================================================
+# DOCUMENT / PAGE REFERENCE SCORING
+# ==============================================================================
+
+def parse_ground_truth_doc_ref(ref_str: str) -> List[Dict]:
+    """Parse ground truth 'Documents Referred' into list of {doc_name, page}.
+
+    Format examples:
+      'META-Q1-2025-Earnings-Call-Transcript-1.pdf, p4'
+      'CCI Combination Guide.pdf, p4\\n1652423343024.pdf, p52\\n1652423343024.pdf, p54'
+    """
+    if not ref_str or str(ref_str).strip().lower() in ('nan', 'none', ''):
+        return []
+
+    entries = []
+    # Split by newline for multiple references
+    lines = str(ref_str).strip().split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Try to parse "filename.ext, pN"
+        m = re.match(r'^(.+?),\s*p(\d+)$', line)
+        if m:
+            doc_name = m.group(1).strip()
+            page = int(m.group(2))
+            entries.append({"doc_name": doc_name, "page": page})
+        else:
+            # Just a filename without page
+            entries.append({"doc_name": line.strip(), "page": None})
+
+    return entries
+
+
+def score_doc_reference(predicted_docs: List[str], predicted_pages: List[int],
+                        ground_truth_ref: str) -> Dict:
+    """Score whether the system returned the correct document names and page numbers."""
+    gt_entries = parse_ground_truth_doc_ref(ground_truth_ref)
+    if not gt_entries:
+        return {"doc_name_match": None, "page_match": None, "doc_page_match": None}
+
+    # Expected doc names (normalized for comparison)
+    gt_doc_names = set()
+    gt_pages = set()
+    gt_doc_page_pairs = set()
+    for entry in gt_entries:
+        dn = entry["doc_name"].strip().lower()
+        gt_doc_names.add(dn)
+        if entry["page"] is not None:
+            gt_pages.add(entry["page"])
+            gt_doc_page_pairs.add((dn, entry["page"]))
+
+    # Predicted doc names (normalized)
+    pred_doc_names = set(d.strip().lower() for d in predicted_docs if d)
+    pred_pages = set(predicted_pages) if predicted_pages else set()
+
+    # Doc name matching — check if any predicted doc name matches (partial match OK for filenames)
+    doc_hits = 0
+    for gt_dn in gt_doc_names:
+        for pred_dn in pred_doc_names:
+            # Exact match or one contains the other
+            if gt_dn == pred_dn or gt_dn in pred_dn or pred_dn in gt_dn:
+                doc_hits += 1
+                break
+    doc_score = doc_hits / len(gt_doc_names) if gt_doc_names else 0.0
+
+    # Page matching
+    if gt_pages:
+        page_hits = len(pred_pages & gt_pages)
+        page_score = page_hits / len(gt_pages)
+    else:
+        page_score = None  # No page info in ground truth
+
+    # Combined doc+page matching
+    if gt_doc_page_pairs:
+        pair_hits = 0
+        for gt_dn, gt_p in gt_doc_page_pairs:
+            for pred_dn in pred_doc_names:
+                if (gt_dn == pred_dn or gt_dn in pred_dn or pred_dn in gt_dn) and gt_p in pred_pages:
+                    pair_hits += 1
+                    break
+        doc_page_score = pair_hits / len(gt_doc_page_pairs)
+    else:
+        doc_page_score = None
+
+    return {
+        "doc_name_match": round(doc_score, 3),
+        "page_match": round(page_score, 3) if page_score is not None else None,
+        "doc_page_match": round(doc_page_score, 3) if doc_page_score is not None else None,
+    }
+
+
 def run_benchmark():
     print("=" * 90)
     print(f"{'LUCIO AI PIPELINE BENCHMARK':^90}")
@@ -80,7 +173,7 @@ def run_benchmark():
     print()
 
     for f in ["chunks.json", "metadata.json", "tfidf_index.json", "tfidf_vectors.npz",
-              "tfidf_vocab.json", "faiss_index.bin", "results.json"]:
+              "tfidf_vocab.json", "results.json"]:
         if os.path.exists(f): os.remove(f)
 
     # Phase 1: Ingest
@@ -136,7 +229,7 @@ def run_benchmark():
     print(f"  {'Status':<25} {c}{status} ({'< 30s' if status == 'PASS' else '> 30s'})\033[0m")
     print("-" * 55)
 
-    # Per-question
+    # Per-question answer accuracy
     print()
     print("[ ANSWER ACCURACY ]")
     print("-" * 95)
@@ -144,6 +237,7 @@ def run_benchmark():
     print("-" * 95)
 
     eval_scores = []
+    doc_ref_scores = []
     gemini_ct = fallback_ct = 0
 
     for i, r in enumerate(results):
@@ -167,9 +261,67 @@ def run_benchmark():
         else:
             print(f"  {i+1:<3} {r['question'][:35]:<35} {'N/A':>6} {'':>6} {'':>6}  {'NO GT':<10} {src:<8}")
 
+        # Score document/page references
+        gt_doc_ref = r.get("ground_truth_doc_ref")
+        if gt_doc_ref and str(gt_doc_ref).strip().lower() not in ('nan', 'none', ''):
+            pred_docs = r.get("document_name", [])
+            pred_pages = r.get("page_numbers", [])
+            dsc = score_doc_reference(pred_docs, pred_pages, gt_doc_ref)
+            doc_ref_scores.append(dsc)
+        else:
+            doc_ref_scores.append(None)
+
     print("-" * 95)
 
-    # Detailed
+    # Document/Page reference accuracy
+    print()
+    print("[ DOCUMENT & PAGE REFERENCE ACCURACY ]")
+    print("-" * 100)
+    print(f"  {'#':<3} {'Question':<30} {'Doc':>6} {'Page':>6} {'Both':>6}  "
+          f"{'Predicted Doc':<25} {'Expected Doc':<25}")
+    print("-" * 100)
+
+    valid_doc_scores = []
+    valid_page_scores = []
+    valid_pair_scores = []
+
+    for i, r in enumerate(results):
+        dsc = doc_ref_scores[i]
+        q_short = r["question"][:28] + ".." if len(r["question"]) > 30 else r["question"]
+        pred_docs = r.get("document_name", [])
+        gt_ref = r.get("ground_truth_doc_ref", "")
+
+        if dsc and dsc.get("doc_name_match") is not None:
+            doc_m = dsc["doc_name_match"]
+            page_m = dsc["page_match"]
+            pair_m = dsc["doc_page_match"]
+
+            valid_doc_scores.append(doc_m)
+            if page_m is not None:
+                valid_page_scores.append(page_m)
+            if pair_m is not None:
+                valid_pair_scores.append(pair_m)
+
+            doc_clr = "\033[92m" if doc_m >= 0.7 else ("\033[93m" if doc_m > 0 else "\033[91m")
+            page_str = f"{page_m:>5.0%}" if page_m is not None else "  N/A"
+            pair_str = f"{pair_m:>5.0%}" if pair_m is not None else "  N/A"
+            page_clr = "\033[92m" if (page_m or 0) >= 0.7 else ("\033[93m" if (page_m or 0) > 0 else "\033[91m")
+
+            pred_doc_str = ", ".join(pred_docs[:2]) if pred_docs else "none"
+            if len(pred_doc_str) > 23: pred_doc_str = pred_doc_str[:21] + ".."
+
+            gt_entries = parse_ground_truth_doc_ref(gt_ref)
+            gt_doc_str = ", ".join(set(e["doc_name"][:20] for e in gt_entries[:2])) if gt_entries else "none"
+            if len(gt_doc_str) > 23: gt_doc_str = gt_doc_str[:21] + ".."
+
+            print(f"  {i+1:<3} {q_short:<30} {doc_clr}{doc_m:>5.0%}\033[0m "
+                  f"{page_clr}{page_str}\033[0m {pair_str}  {pred_doc_str:<25} {gt_doc_str:<25}")
+        else:
+            print(f"  {i+1:<3} {q_short:<30} {'N/A':>6} {'N/A':>6} {'N/A':>6}  {'':>25} {'NO REF':<25}")
+
+    print("-" * 100)
+
+    # Detailed comparison
     print()
     print("[ DETAILED COMPARISON ]")
     print("-" * 90)
@@ -182,6 +334,12 @@ def run_benchmark():
             print(f"    Got:       {r.get('answer','')[:150]}")
             print(f"    Score:     {sc['composite']:.0%} (nums={sc['number_match']:.0%}, "
                   f"terms={sc['key_term_match']:.0%}, f1={sc['token_f1']:.0%})")
+            pred_docs = r.get("document_name", [])
+            pred_pages = r.get("page_numbers", [])
+            gt_ref = r.get("ground_truth_doc_ref", "")
+            if pred_docs or gt_ref:
+                print(f"    Pred Docs: {pred_docs}, Pages: {pred_pages}")
+                print(f"    GT Ref:    {gt_ref}")
             print()
 
     # Summary
@@ -198,6 +356,8 @@ def run_benchmark():
         print("=" * 90)
         print(f"{'SUMMARY':^90}")
         print("=" * 90)
+        print()
+        print("  --- Answer Accuracy ---")
         print(f"  Questions Evaluated:    {n}")
         print(f"  Exact Matches:          {exact}/{n} ({exact/n:.0%})")
         print(f"  Contains Ground Truth:  {contains}/{n} ({contains/n:.0%})")
@@ -206,6 +366,36 @@ def run_benchmark():
         print(f"  Avg Number Match:       {avg_num:.1%}")
         print(f"  Avg Key Term Match:     {avg_term:.1%}")
         print(f"  Avg Composite:          {avg_comp:.1%}")
+        print()
+
+        # Document/page reference summary
+        print("  --- Document & Page Attribution ---")
+        if valid_doc_scores:
+            avg_doc = sum(valid_doc_scores) / len(valid_doc_scores)
+            doc_correct = sum(1 for s in valid_doc_scores if s >= 1.0)
+            print(f"  Doc Name Evaluated:     {len(valid_doc_scores)}")
+            print(f"  Doc Name Exact Match:   {doc_correct}/{len(valid_doc_scores)} "
+                  f"({doc_correct/len(valid_doc_scores):.0%})")
+            print(f"  Avg Doc Name Match:     {avg_doc:.1%}")
+        else:
+            print(f"  Doc Name Evaluated:     0 (no ground truth references)")
+
+        if valid_page_scores:
+            avg_page = sum(valid_page_scores) / len(valid_page_scores)
+            page_correct = sum(1 for s in valid_page_scores if s >= 1.0)
+            print(f"  Page Number Evaluated:  {len(valid_page_scores)}")
+            print(f"  Page Number Exact:      {page_correct}/{len(valid_page_scores)} "
+                  f"({page_correct/len(valid_page_scores):.0%})")
+            print(f"  Avg Page Match:         {avg_page:.1%}")
+
+        if valid_pair_scores:
+            avg_pair = sum(valid_pair_scores) / len(valid_pair_scores)
+            pair_correct = sum(1 for s in valid_pair_scores if s >= 1.0)
+            print(f"  Doc+Page Pair Evaluated:{len(valid_pair_scores)}")
+            print(f"  Doc+Page Pair Exact:    {pair_correct}/{len(valid_pair_scores)} "
+                  f"({pair_correct/len(valid_pair_scores):.0%})")
+            print(f"  Avg Doc+Page Match:     {avg_pair:.1%}")
+
         print()
         print(f"  Gemini Answers:         {gemini_ct}")
         print(f"  No Answer / Fallback:   {fallback_ct}")

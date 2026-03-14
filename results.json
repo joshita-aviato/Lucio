@@ -1,0 +1,149 @@
+[
+  {
+    "question": "What are the revenue figures for Meta for Q1, Q2 and Q3?",
+    "answer": "Information not found in provided documents",
+    "document_name": [
+      "META-Q1-2025-Earnings-Call-Transcript-1.pdf"
+    ],
+    "page_numbers": [
+      4,
+      5
+    ],
+    "ground_truth": "Q2 2024: $39.1B \n\nQ3 2024: $40.6B \n\nQ1 2025: $42.3B",
+    "ground_truth_doc_ref": "META-Q1-2025-Earnings-Call-Transcript-1.pdf, p4\nMETA-Q3-2024-Earnings-Call-Transcript.pdf, p3\nMETA-Q2-2024-Earnings-Call-Transcript.pdf, p4",
+    "source": "no_answer",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.0,
+      "number_match": 0.0,
+      "key_term_match": 0.0,
+      "composite": 0.0
+    }
+  },
+  {
+    "question": "What was KFIN's revenue in 2021?",
+    "answer": "Information not found in provided documents",
+    "document_name": [
+      "1649061896992.PDF"
+    ],
+    "page_numbers": [
+      5
+    ],
+    "ground_truth": "Rs. 4586550000",
+    "ground_truth_doc_ref": "1649061896992.PDF, p24",
+    "source": "gemini",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.0,
+      "number_match": 0.0,
+      "key_term_match": 0.0,
+      "composite": 0.0
+    }
+  },
+  {
+    "question": "What metrics helped CCI determine if the combination would be anticompetitive?",
+    "answer": "The Herfindahl Hirschman Index (\"HHI\") and the change in HHI are used to assess the level of market concentration and the changes in concentration due to a combination.",
+    "document_name": [
+      "11. C-2015-07-288.pdf"
+    ],
+    "page_numbers": [
+      12
+    ],
+    "ground_truth": "The CCI used the Herfindahl Hirschman Index to assess market concentration",
+    "ground_truth_doc_ref": "4. C-2015-07-288.pdf, p12",
+    "source": "gemini",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.581,
+      "number_match": 0.0,
+      "key_term_match": 0.0,
+      "composite": 0.581
+    }
+  },
+  {
+    "question": "What was the bench in the Eastman Kodak Case?",
+    "answer": "The bench in the Eastman Kodak Co. v. Image Technical Services, Inc. case included BLACKMUN, REHNQUIST, C. J., WHITE, STEVENS, KENNEDY, SOUTER, SCALIA, O'CONNOR, and THOMAS, JJ.",
+    "document_name": [
+      "Eastman Kodak Co. v. Image Technical Services"
+    ],
+    "page_numbers": [
+      1
+    ],
+    "ground_truth": "BLACKMUN, J., delivered the opinion of the Court, in which REHNQUIST, C. J., and WHITE, STEVENS, KENNEDY, and SOUTER, JJ., joined. SCALIA, J., filed a dissenting opinion, in which O’CONNOR and THOMAS, JJ., joined.",
+    "ground_truth_doc_ref": "Eastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992) .pdf, p3",
+    "source": "gemini",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.5,
+      "number_match": 1.0,
+      "key_term_match": 0.909,
+      "composite": 0.798
+    }
+  },
+  {
+    "question": "How many SCOTUS cases are in the set? Name them.",
+    "answer": "There are 5 SCOTUS cases in the set:\nBell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007",
+    "document_name": [
+      "META-Q3-2024-Earnings-Call-Transcript.pdf"
+    ],
+    "page_numbers": [
+      7,
+      8
+    ],
+    "ground_truth": "There are 5 cases\nBell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007)\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992)\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911)\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940)\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962)",
+    "ground_truth_doc_ref": "Bell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007) .pdf\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962) .pdf\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992) .pdf\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911) .pdf\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940) .pdf",
+    "source": "gemini",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.387,
+      "number_match": 0.25,
+      "key_term_match": 0.25,
+      "composite": 0.387
+    }
+  },
+  {
+    "question": "What is the governing law in the NVCA IRA?",
+    "answer": "Information not found in provided documents",
+    "document_name": [
+      "NVCA-Model-Document-Investor-Rights-Agreement.docx"
+    ],
+    "page_numbers": [],
+    "ground_truth": "Delaware",
+    "ground_truth_doc_ref": "NVCA-Model-Document-Investor-Rights-Agreement.docx, p36",
+    "source": "no_answer",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.0,
+      "number_match": 0.0,
+      "key_term_match": 0.0,
+      "composite": 0.0
+    }
+  },
+  {
+    "question": "If Pristine were to acquire an indian company that had turnover of 1Cr and no assets, would it have to notify the deal to the CCI?",
+    "answer": "No, it would not have to notify the deal to the CCI. An acquisition does not constitute a combination if the value of the assets of the enterprise being acquired in India is below INR",
+    "document_name": [
+      "CCI Combination Guide.pdf"
+    ],
+    "page_numbers": [
+      14
+    ],
+    "ground_truth": "The thresholds for notification are:\nAssets of the acquirer and target > INR 25 Billion; or\nRevenue of the acquirer and target > INR 75 Billion\n\n\nPristine's revenue in 2021 was INR 5 billion; and total assets were INR 10 billion. Therefore, even after adding the turnover and the asset figures of the target, a notification will not be required.",
+    "ground_truth_doc_ref": "CCI Combination Guide.pdf, p4\n1652423343024.pdf, p52\n1652423343024.pdf, p54",
+    "source": "gemini",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.206,
+      "number_match": 0.0,
+      "key_term_match": 0.143,
+      "composite": 0.206
+    }
+  }
+]
