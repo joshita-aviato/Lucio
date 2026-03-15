@@ -44,9 +44,9 @@ MAX_PDF_PAGES = 80
 def adaptive_optimization(doc_count: int):
     global CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES
     if doc_count <= 20:
-        CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES = 500, 100, 30, 80
+        CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES = 500, 100, 40, 100
     elif doc_count <= 50:
-        CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES = 450, 90, 20, 80
+        CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES = 450, 90, 25, 80
     elif doc_count <= 100:
         CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHUNKS_PER_DOC, MAX_PDF_PAGES = 400, 70, 12, 80
     elif doc_count <= 200:
@@ -62,11 +62,12 @@ def adaptive_optimization(doc_count: int):
 # ==============================================================================
 
 def call_gemini(prompt: str, timeout: float = 20.0) -> str:
+    """Single-shot Gemini call. No retries — we handle retries at the caller level."""
     import urllib.request, urllib.error
     url = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
     payload = json.dumps({
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1024}
+        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 2048}
     }).encode('utf-8')
     req = urllib.request.Request(url, data=payload,
                                  headers={"Content-Type": "application/json"}, method="POST")
@@ -74,7 +75,9 @@ def call_gemini(prompt: str, timeout: float = 20.0) -> str:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode('utf-8'))
             cands = data.get("candidates", [])
-            if not cands: return ""
+            if not cands:
+                logger.warning(f"Gemini: no candidates returned")
+                return ""
             parts = cands[0].get("content", {}).get("parts", [])
             if not parts: return ""
             return parts[0].get("text", "").strip()
@@ -104,8 +107,8 @@ def build_qa_prompt(question: str, context_chunks: List[Dict], corpus_summary: s
         header = f"[Source: {doc_name} | Pages: {page_str}]"
         parts.append(f"{header}\n{chunk['text']}")
     context = "\n\n---\n\n".join(parts)
-    if len(context) > 20000:
-        context = context[:20000]
+    if len(context) > 25000:
+        context = context[:25000]
 
     corpus_section = ""
     if corpus_summary:
@@ -115,23 +118,19 @@ Corpus Information (all documents in the collection):
 
 """
 
-    return f"""Answer the question using ONLY the context below.
+    return f"""You are a legal document analyst. Answer the question using ONLY the context below.
 
 Rules:
+- ALWAYS attempt to answer. Only say "Information not found" if truly ZERO relevant info exists.
 - Be precise. Use EXACT numbers, names, dates, terms from the context.
-- Give a complete but concise answer.
 - If the question asks for multiple items, list ALL of them.
 - Do NOT round numbers. If context says "$39.1 billion", say "$39.1 billion".
 - Do NOT add disclaimers or caveats.
-- Read through ALL the context carefully before answering.
-- Only say "Information not found in provided documents" if you truly cannot find any relevant information.
+- Read ALL context chunks carefully before answering.
 
-After your answer, on a NEW line, output the source information in this EXACT format:
+After your answer, on a NEW line, output source info in this EXACT format:
 SOURCE: <document_filename>, <page_number(s)>
 If multiple sources, put each on its own SOURCE: line.
-Example:
-SOURCE: contract.pdf, p4
-SOURCE: report.pdf, p12, p13
 
 {corpus_section}Context:
 {context}
@@ -155,14 +154,11 @@ def parse_gemini_response(response: str) -> Dict:
         else:
             answer_lines.append(line)
 
-    answer = "\n".join(answer_lines).strip()
-    # Remove trailing empty lines before SOURCE
-    answer = answer.rstrip()
+    answer = "\n".join(answer_lines).strip().rstrip()
 
     doc_names = []
     page_numbers = []
     for sl in source_lines:
-        # Parse "SOURCE: filename.pdf, p4, p5"
         content = sl[len("SOURCE:"):].strip()
         parts = [p.strip() for p in content.split(",")]
         if parts:
@@ -194,12 +190,22 @@ def normalize_for_comparison(text: str) -> str:
     return t.strip()
 
 
+def _normalize_number_suffix(n: str) -> str:
+    """Normalize number suffixes: billion/b, million/m, etc."""
+    n = n.lower().strip()
+    for long, short in [("billion", "b"), ("million", "m"), ("thousand", "k"),
+                         ("crore", "cr"), ("lakh", "l")]:
+        n = n.replace(long, short)
+    return n
+
+
 def extract_numbers(text: str) -> Set[str]:
     """Extract all numbers from text, normalized."""
     nums = set()
     for m in re.finditer(r'[\$₹]?\s*[\d,]+\.?\d*\s*(?:billion|million|thousand|cr|crore|lakh|%|b|m|k)?', text.lower()):
         n = re.sub(r'[,\s]', '', m.group()).strip()
-        if n: nums.add(n)
+        if n:
+            nums.add(_normalize_number_suffix(n))
     for m in re.finditer(r'\b\d[\d,.]*\d\b|\b\d+\b', text):
         nums.add(m.group().replace(',', ''))
     return nums
@@ -278,7 +284,7 @@ def score_answer(predicted: str, ground_truth: str) -> dict:
 
 
 # ==============================================================================
-# TEXT EXTRACTION — extract EVERYTHING possible
+# TEXT EXTRACTION
 # ==============================================================================
 
 def _extract_text(fp: Path) -> str:
@@ -325,7 +331,16 @@ def _extract_docx(fp: Path) -> str:
                 r = " | ".join(c for c in cells if c)
                 if r: rows.append(r)
             if rows: parts.append("[TABLE]\n" + "\n".join(rows) + "\n[/TABLE]")
-        return "\n".join(parts)
+        # Add synthetic page markers (~250 words per page)
+        full_text = "\n".join(parts)
+        words = full_text.split()
+        if len(words) > 300:
+            pages_out = []
+            for i in range(0, len(words), 250):
+                page_num = (i // 250) + 1
+                pages_out.append(f"[Page {page_num}]\n" + " ".join(words[i:i+250]))
+            return "\n\n".join(pages_out)
+        return full_text
     except Exception as e:
         logger.error(f"DOCX err {fp.name}: {e}"); return ""
 
@@ -382,7 +397,7 @@ def _extract_pptx(fp: Path) -> str:
 
 
 # ==============================================================================
-# CLEANING — minimal, preserve content
+# CLEANING
 # ==============================================================================
 
 def clean_text(text: str) -> str:
@@ -399,15 +414,11 @@ def clean_text(text: str) -> str:
 def chunk_text_with_metadata(text: str, doc_name: str, doc_index: int,
                               size: int, overlap: int) -> List[Dict]:
     """Split text into chunks, tracking page boundaries from [Page X] markers."""
-    # Split by [Page X] markers
     page_pattern = re.compile(r'\[Page\s+(\d+)\]')
     segments = page_pattern.split(text)
 
-    # Build list of (page_number, page_text) pairs
-    # segments alternates: text_before_first_marker, page_num, text, page_num, text, ...
     page_texts = []
     if segments and segments[0].strip():
-        # Text before any page marker -> page 0 (unknown)
         page_texts.append((0, segments[0].strip()))
 
     i = 1
@@ -419,7 +430,6 @@ def chunk_text_with_metadata(text: str, doc_name: str, doc_index: int,
         i += 2
 
     if not page_texts:
-        # No page markers found (e.g., docx, xlsx) — treat as single page
         words = text.split()
         if not words or len(" ".join(words)) <= 20:
             return []
@@ -427,10 +437,8 @@ def chunk_text_with_metadata(text: str, doc_name: str, doc_index: int,
         return [{"text": c, "doc_name": doc_name, "pages": [], "doc_index": doc_index}
                 for c in raw_chunks]
 
-    # Chunk within and across pages, preserving page attribution
     chunks = []
-    # Accumulate words with page tracking
-    all_words = []  # list of (word, page_num)
+    all_words = []
     for page_num, page_content in page_texts:
         for w in page_content.split():
             all_words.append((w, page_num))
@@ -449,7 +457,6 @@ def chunk_text_with_metadata(text: str, doc_name: str, doc_index: int,
     start = 0
     while start < len(all_words):
         end = min(start + size, len(all_words))
-        # Try to break at sentence boundary
         if end < len(all_words):
             for j in range(end, max(end - size // 5, start + 1), -1):
                 if all_words[j - 1][0][-1] in '.!?':
@@ -467,7 +474,6 @@ def chunk_text_with_metadata(text: str, doc_name: str, doc_index: int,
 
 
 def _chunk_words(words: List[str], size: int, overlap: int) -> List[str]:
-    """Simple word-based chunking without metadata (helper)."""
     if len(words) <= size:
         return [" ".join(words)] if len(" ".join(words)) > 20 else []
     chunks = []
@@ -489,10 +495,21 @@ def process_file(fp: Path, doc_index: int = 0) -> List[Dict]:
         raw = _extract_text(fp)
         if not raw or len(raw.strip()) < 30: return []
         text = clean_text(raw)
-        doc_name = fp.name  # Keep original filename for matching
+        doc_name = fp.name
         chunks = chunk_text_with_metadata(text, doc_name, doc_index,
                                            CHUNK_SIZE, CHUNK_OVERLAP)
-        return chunks[:MAX_CHUNKS_PER_DOC]
+        if len(chunks) > MAX_CHUNKS_PER_DOC:
+            # Keep first 2/3 (important early content) + sample last 1/3 from remainder
+            keep_first = (MAX_CHUNKS_PER_DOC * 2) // 3
+            sample_rest = MAX_CHUNKS_PER_DOC - keep_first
+            remainder = chunks[keep_first:]
+            if len(remainder) > sample_rest:
+                step = len(remainder) / sample_rest
+                sampled = [remainder[int(i * step)] for i in range(sample_rest)]
+            else:
+                sampled = remainder
+            chunks = chunks[:keep_first] + sampled
+        return chunks
     except Exception as e:
         logger.error(f"Err {fp.name}: {e}"); return []
 
@@ -617,9 +634,9 @@ class TFIDFVectorizer:
 # RETRIEVAL
 # ==============================================================================
 
-def hybrid_retrieve(bm25, chunks: List[Dict], query, top_k=10, bm25_k=80,
+def hybrid_retrieve(bm25, chunks: List[Dict], query, top_k=12, bm25_k=80,
                     tfidf_matrix=None, tfidf_vec=None, **kw):
-    """Retrieve top chunks. chunks is list of dicts with 'text' key."""
+    """Retrieve top chunks with document diversity."""
     expanded = expand_query(query)
     results = bm25.query(expanded, top_k=bm25_k)
     if not results: results = bm25.query(query, top_k=bm25_k)
@@ -655,11 +672,47 @@ def hybrid_retrieve(bm25, chunks: List[Dict], query, top_k=10, bm25_k=80,
 
     scored.sort(reverse=True, key=lambda x: x[0])
     seen, out = set(), []
+    doc_counts = {}
+    max_per_doc = max(top_k // 2, 4)
     for _, d in scored:
         key = chunks[d]["text"][:150]
-        if key not in seen: seen.add(key); out.append(d)
+        if key in seen: continue
+        dn = chunks[d].get("doc_name", "")
+        doc_counts[dn] = doc_counts.get(dn, 0) + 1
+        if doc_counts[dn] > max_per_doc and len(out) >= top_k // 2:
+            continue
+        seen.add(key)
+        out.append(d)
         if len(out) >= top_k: break
     return out
+
+
+# ==============================================================================
+# EXTRACTIVE FALLBACK
+# ==============================================================================
+
+def _extractive_fallback(question: str, ctx_chunks: List[Dict]) -> str:
+    """When Gemini fails, extract the most relevant sentences from context."""
+    q_tokens = set(tokenize(question))
+    scored_sents = []
+
+    for chunk in ctx_chunks[:5]:
+        sentences = re.split(r'(?<=[.!?])\s+', chunk["text"])
+        for sent in sentences:
+            if len(sent) < 15:
+                continue
+            s_tokens = set(tokenize(sent))
+            overlap = len(q_tokens & s_tokens)
+            if overlap > 0:
+                scored_sents.append((overlap, sent))
+
+    if not scored_sents:
+        return "Information not found in provided documents"
+
+    scored_sents.sort(reverse=True, key=lambda x: x[0])
+    # Return top 3 sentences for better coverage
+    top = scored_sents[:3]
+    return " ".join(s for _, s in top)
 
 
 # ==============================================================================
@@ -714,7 +767,6 @@ def ingest():
     if not all_chunks: logger.error("No chunks!"); sys.exit(1)
     logger.info(f"{len(all_chunks)} chunks extracted")
 
-    # Extract text list for BM25/TF-IDF indexing
     chunk_texts = [c["text"] for c in all_chunks]
 
     bm25 = BM25Index(); bm25.build(chunk_texts)
@@ -744,7 +796,6 @@ def run():
     with open(CHUNKS_PATH) as f: chunks = json.load(f)
     with open(TFIDF_PATH) as f: bm25 = BM25Index.from_dict(json.load(f))
 
-    # Extract text list for TF-IDF queries
     chunk_texts = [c["text"] for c in chunks]
 
     tfidf_mat, tfidf_vec = None, None
@@ -760,7 +811,6 @@ def run():
     if os.path.exists(META_PATH):
         with open(META_PATH) as f: ingest_time = json.load(f).get("ingest_time", 0)
 
-    # Build corpus summary for meta-questions
     corpus_summary = build_corpus_summary(chunks)
 
     import pandas as pd
@@ -769,58 +819,77 @@ def run():
     gt_col = next((c for c in ['Answer','answer','Answers','Expected Answer'] if c in qdf.columns), None)
     ground_truth = qdf[gt_col].tolist() if gt_col else [None]*len(questions)
 
-    # Check for "Documents Referred" column for ground truth doc/page info
     doc_ref_col = next((c for c in ['Documents Referred', 'documents referred',
                                      'Document Referred', 'Doc Referred'] if c in qdf.columns), None)
     doc_refs = qdf[doc_ref_col].tolist() if doc_ref_col else [None]*len(questions)
 
     logger.info(f"{len(questions)} questions")
 
-    # Retrieve — BM25 operates on text, but we pass chunk dicts for scoring
+    # Retrieve
     retrieval = []
     for q in questions:
-        # BM25 query uses chunk_texts internally via inverted index (already indexed by position)
-        idxs = hybrid_retrieve(bm25, chunks, q, top_k=10, bm25_k=80,
+        idxs = hybrid_retrieve(bm25, chunks, q, top_k=12, bm25_k=80,
                                tfidf_matrix=tfidf_mat, tfidf_vec=tfidf_vec)
         ctx_chunks = [chunks[i] for i in idxs]
         prompt = build_qa_prompt(q, ctx_chunks, corpus_summary=corpus_summary)
         retrieval.append({"q": q, "ctx": ctx_chunks, "prompt": prompt})
     logger.info(f"Retrieval: {time.time()-START_TIME:.2f}s")
 
-    # Gemini — all in parallel
+    # Gemini — simple all-parallel, no stagger, no backoff
     raw_responses = [None] * len(questions)
     if gemini_ok:
         def _call(i): return i, call_gemini(retrieval[i]["prompt"], timeout=20.0)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(questions))) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(7, len(questions))) as pool:
             futs = {pool.submit(_call, i): i for i in range(len(questions))}
             for fut in concurrent.futures.as_completed(futs):
                 try:
-                    i, a = fut.result(timeout=20.0)
+                    i, a = fut.result(timeout=25.0)
                     if a: raw_responses[i] = a
                 except: pass
+
+        # Quick sequential retry for any failures (1 attempt each, no backoff)
+        failed = [i for i in range(len(questions)) if raw_responses[i] is None]
+        if failed:
+            logger.info(f"Retrying {len(failed)} failed Gemini calls sequentially")
+            time.sleep(1)  # Brief pause before retries
+            for i in failed:
+                resp = call_gemini(retrieval[i]["prompt"], timeout=15.0)
+                if resp: raw_responses[i] = resp
 
     # Results
     final = []
     for i, q in enumerate(questions):
         raw_resp = raw_responses[i] or ""
         parsed = parse_gemini_response(raw_resp)
-        ans = parsed["answer"] or "Information not found in provided documents"
+        ans = parsed["answer"]
         src = "gemini" if raw_responses[i] else "no_answer"
 
-        # If Gemini didn't return source info, infer from top retrieved chunks
+        # Extractive fallback when Gemini fails
+        if not ans and retrieval[i]["ctx"]:
+            src = "extractive"
+            ans = _extractive_fallback(q, retrieval[i]["ctx"])
+
+        if not ans:
+            ans = "Information not found in provided documents"
+
+        # Infer doc/page from retrieved chunks when Gemini doesn't provide them
         doc_names = parsed["doc_names"]
         page_numbers = parsed["page_numbers"]
         if not doc_names and retrieval[i]["ctx"]:
-            # Use the top chunk's metadata as fallback
-            top_chunk = retrieval[i]["ctx"][0]
-            doc_names = [top_chunk["doc_name"]]
-            page_numbers = top_chunk.get("pages", [])
+            seen_docs = []
+            all_pages = []
+            for chunk in retrieval[i]["ctx"][:5]:
+                dn = chunk["doc_name"]
+                if dn not in seen_docs:
+                    seen_docs.append(dn)
+                all_pages.extend(chunk.get("pages", []))
+            doc_names = seen_docs
+            page_numbers = sorted(set(all_pages))
 
         gt = ground_truth[i] if i < len(ground_truth) else None
         gt_s = str(gt).strip() if gt and str(gt).strip().lower() not in ('nan','none','') else None
         sc = score_answer(ans, gt_s) if gt_s else None
 
-        # Ground truth doc reference
         gt_doc_ref = doc_refs[i] if i < len(doc_refs) else None
         gt_doc_ref_s = str(gt_doc_ref).strip() if gt_doc_ref and str(gt_doc_ref).strip().lower() not in ('nan','none','') else None
 

@@ -12,11 +12,19 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
+def _normalize_number_suffix(n: str) -> str:
+    n = n.lower().strip()
+    for long, short in [("billion", "b"), ("million", "m"), ("thousand", "k"),
+                         ("crore", "cr"), ("lakh", "l")]:
+        n = n.replace(long, short)
+    return n
+
+
 def extract_numbers(text: str) -> Set[str]:
     nums = set()
     for m in re.finditer(r'[\$₹]?\s*[\d,]+\.?\d*\s*(?:billion|million|thousand|cr|crore|lakh|%|b|m|k)?', text.lower()):
         n = re.sub(r'[,\s]', '', m.group()).strip()
-        if n: nums.add(n)
+        if n: nums.add(_normalize_number_suffix(n))
     for m in re.finditer(r'\b\d[\d,.]*\d\b|\b\d+\b', text):
         nums.add(m.group().replace(',', ''))
     return nums

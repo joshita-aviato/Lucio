@@ -1,38 +1,48 @@
 [
   {
     "question": "What are the revenue figures for Meta for Q1, Q2 and Q3?",
-    "answer": "Information not found in provided documents",
+    "answer": "Q1 total revenue was $42.3 billion. Q2 total revenue was $39.1 billion. Q3 total revenue was $40.6 billion.",
     "document_name": [
-      "META-Q1-2025-Earnings-Call-Transcript-1.pdf"
+      "META-Q1-2025-Earnings-Call-Transcript-1.pdf",
+      "META-Q2-2024-Earnings-Call-Transcript.pdf",
+      "META-Q3-2024-Earnings-Call-Transcript.pdf"
     ],
     "page_numbers": [
-      4,
-      5
+      3,
+      4
     ],
     "ground_truth": "Q2 2024: $39.1B \n\nQ3 2024: $40.6B \n\nQ1 2025: $42.3B",
     "ground_truth_doc_ref": "META-Q1-2025-Earnings-Call-Transcript-1.pdf, p4\nMETA-Q3-2024-Earnings-Call-Transcript.pdf, p3\nMETA-Q2-2024-Earnings-Call-Transcript.pdf, p4",
-    "source": "no_answer",
+    "source": "gemini",
     "scores": {
       "exact_match": false,
       "contains_truth": false,
-      "token_f1": 0.0,
-      "number_match": 0.0,
+      "token_f1": 0.316,
+      "number_match": 0.545,
       "key_term_match": 0.0,
-      "composite": 0.0
+      "composite": 0.316
     }
   },
   {
     "question": "What was KFIN's revenue in 2021?",
-    "answer": "Information not found in provided documents",
+    "answer": "Summary of Financial Statements The following details are derived from the Restated Consolidated Financial Information: (In ₹ million except per share data) As at and for the As at and for the As at and for As at and for As at and for nine months period nine months the year the year Particulars the year ended ended December period ended ended March ended March March 31, 2021 31, 2021 December 31, 2020 31, 2020 31, 2019 Equity Share capital 1,675.68 1,508.43 1,508.43 1,508.43 1,658.31 Net Worth# 5,899.45 4,344.31 3,464.04 4,095.76 5,192.77 Revenue from Operations 4,586.55 3,388.34 4,811.44 4,498.71 1,624.25 Profit/loss for the year 976.91 236.00 (645.07) 45.23 89.55 Earnings/loss per share (in ₹) - Basic 6.34 1.56 (4.28) 0.28 1.46 - Diluted 6.34 1.56 (4.28) 0.28 1.46 Net asset value per Equity Share (in ₹)# 35.21 28.80 22.96 27.15 31.31 Total Borrowings (net-off transaction 3 1,206.95 3,721.06 3,461.34 3,754.38 4,060.07costs) Notes: 1. The following customers amount to 10% or more of our revenue in the respective period / year: Custo For Fiscal 2019* For Fiscal 2020 For Fiscal 2021 For nine months For nine months mer ended December 31, ended December 31, 2020 2021 (revenue (% of (revenue (% of (revenue (% of (revenue (% of (revenue (% of contribu contribu contribu contribu contribu contribu contribu contribu contribu contribu tion in ₹ tion to tion in ₹ tion to tion in ₹ tion to tion in ₹ tion to tion in ₹ tion to million) revenue) million) revenue) million) revenue) million) revenue) million) revenue) Custo 843.40 19.11% 669.62 14.88% 672.16 13.97% 473.70 13.98% 662.41 14.44% mer A Custo 760.79 17.24% 666.08 14.81% 663.57 13.79% 452.74 13.36% EQUITY AND LIABILITIES (1) Equity Equity share capital 1,675.68 1,508.43 1,508.43 1,508.43 1,658.31 Other equity 4,223.77 2,835.88 1,955.61 2,587.33 3,534.46 Total equity 5,899.45 4,344.31 3,464.04 4,095.76 5,192.77 LIABILITIES (2) Non-current liabilities Financial liabilities (i) Borrowings 1,206.95 3,192.52 2,938.90 3,433.12 3,728.67 (ii) Lease liabilities 274.34 281.05 262.65 281.61 217.97 Provisions 70.78 66.25 74.93 51.72 44.56 Deferred tax liabilities (net) 1,207.20 41.45 1,249.57 - - Total non-current liabilities 2,759.27 3,581.27 4,526.05 3,766.45 3,991.20 (3) Current liabilities Financial liabilities (i) Borrowings - 528.54 522.44 321.26 331.40 (ii) Lease liabilities 116.65 109.92 101.24 96.43 70.75 (iii) Trade payables - Total dues of micro enterprises and small 0.40 0.84 3.05 0.20 0.34 enterprises - Total dues of creditors other than micro 190.74 221.21 249.58 203.88 222.32 enterprises and small enterprises (iv) Other financial liabilities 267.18 158.72 197.59 65.33 272.93 Other current liabilities 175.60 111.32 118.57 89.20 102.94 Provisions 41.71 33.62 30.58 35.98 23.74 Current tax liabilities (net) 90.78 21.70 12.98 9.35 9.45 Total current liabilities 883.06 1,185.87 1,236.03 821.63 1,033.87 Total liabilities 3,642.33 4,767.14 5,762.08 4,588.08 5,025.07 TOTAL EQUITY AND LIABILITIES 9,541.78 9,111.45 9,226.12 8,683.84 10,217.84 68 KFin Technologies Limited (formerly known as 'KFin Technologies Private Limited') Annexure II - Restated Consolidated Statement of Profits and Loss (All amounts are in INR millions, unless otherwise stated) For the nine months For the nine months For the year ended For the year ended For the year ended Particulars period ended period ended 31 March 2021 31 March 2020 31 March 2019 31 December 2021 31 December 2020 Income I.",
     "document_name": [
-      "1649061896992.PDF"
+      "1649061896992.PDF",
+      "1652423343024.pdf"
     ],
     "page_numbers": [
-      5
+      5,
+      22,
+      23,
+      24,
+      33,
+      34,
+      68,
+      69
     ],
     "ground_truth": "Rs. 4586550000",
     "ground_truth_doc_ref": "1649061896992.PDF, p24",
-    "source": "gemini",
+    "source": "extractive",
     "scores": {
       "exact_match": false,
       "contains_truth": false,
@@ -44,78 +54,44 @@
   },
   {
     "question": "What metrics helped CCI determine if the combination would be anticompetitive?",
-    "answer": "The Herfindahl Hirschman Index (\"HHI\") and the change in HHI are used to assess the level of market concentration and the changes in concentration due to a combination.",
+    "answer": "As is generally accepted, market concentration is auseful indicator of the likely competitive effects of acombination and Herfindahl Hirschman Index (\"HHI\") is one of the metrics used to assess the level of market concentration and the changes in the concentration due to a combination. If a combination fulfils such criteria, then However, if the Commission’s prime facie opinion is that notice for such combination may be given to the the combination is likely to cause an AAEC then CCI Commission in the form prescribed for Green Channel issues a show cause notice to the parties to combination, filing, disclosing the details of the proposed combination. required for giving effect to the combination before the Secretary within Remedies become necessary if the Commission raises seven days of such completion.",
     "document_name": [
+      "CCI Combination Guide.pdf",
       "11. C-2015-07-288.pdf"
     ],
     "page_numbers": [
-      12
+      8,
+      9,
+      10,
+      12,
+      13,
+      14
     ],
     "ground_truth": "The CCI used the Herfindahl Hirschman Index to assess market concentration",
     "ground_truth_doc_ref": "4. C-2015-07-288.pdf, p12",
-    "source": "gemini",
+    "source": "extractive",
     "scores": {
       "exact_match": false,
       "contains_truth": false,
-      "token_f1": 0.581,
+      "token_f1": 0.23,
       "number_match": 0.0,
-      "key_term_match": 0.0,
-      "composite": 0.581
+      "key_term_match": 0.667,
+      "composite": 0.28
     }
   },
   {
     "question": "What was the bench in the Eastman Kodak Case?",
-    "answer": "The bench in the Eastman Kodak Co. v. Image Technical Services, Inc. case included BLACKMUN, REHNQUIST, C. J., WHITE, STEVENS, KENNEDY, SOUTER, SCALIA, O'CONNOR, and THOMAS, JJ.",
+    "answer": "Information not found",
     "document_name": [
       "Eastman Kodak Co. v. Image Technical Services"
     ],
     "page_numbers": [
-      1
+      18,
+      19
     ],
     "ground_truth": "BLACKMUN, J., delivered the opinion of the Court, in which REHNQUIST, C. J., and WHITE, STEVENS, KENNEDY, and SOUTER, JJ., joined. SCALIA, J., filed a dissenting opinion, in which O’CONNOR and THOMAS, JJ., joined.",
     "ground_truth_doc_ref": "Eastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992) .pdf, p3",
     "source": "gemini",
-    "scores": {
-      "exact_match": false,
-      "contains_truth": false,
-      "token_f1": 0.5,
-      "number_match": 1.0,
-      "key_term_match": 0.909,
-      "composite": 0.798
-    }
-  },
-  {
-    "question": "How many SCOTUS cases are in the set? Name them.",
-    "answer": "There are 5 SCOTUS cases in the set:\nBell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007",
-    "document_name": [
-      "META-Q3-2024-Earnings-Call-Transcript.pdf"
-    ],
-    "page_numbers": [
-      7,
-      8
-    ],
-    "ground_truth": "There are 5 cases\nBell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007)\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992)\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911)\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940)\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962)",
-    "ground_truth_doc_ref": "Bell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007) .pdf\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962) .pdf\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992) .pdf\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911) .pdf\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940) .pdf",
-    "source": "gemini",
-    "scores": {
-      "exact_match": false,
-      "contains_truth": false,
-      "token_f1": 0.387,
-      "number_match": 0.25,
-      "key_term_match": 0.25,
-      "composite": 0.387
-    }
-  },
-  {
-    "question": "What is the governing law in the NVCA IRA?",
-    "answer": "Information not found in provided documents",
-    "document_name": [
-      "NVCA-Model-Document-Investor-Rights-Agreement.docx"
-    ],
-    "page_numbers": [],
-    "ground_truth": "Delaware",
-    "ground_truth_doc_ref": "NVCA-Model-Document-Investor-Rights-Agreement.docx, p36",
-    "source": "no_answer",
     "scores": {
       "exact_match": false,
       "contains_truth": false,
@@ -126,24 +102,89 @@
     }
   },
   {
-    "question": "If Pristine were to acquire an indian company that had turnover of 1Cr and no assets, would it have to notify the deal to the CCI?",
-    "answer": "No, it would not have to notify the deal to the CCI. An acquisition does not constitute a combination if the value of the assets of the enterprise being acquired in India is below INR",
+    "question": "How many SCOTUS cases are in the set? Name them.",
+    "answer": "There are 5 SCOTUS cases in the set:\n1. Bell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007)\n2. Brown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962)\n3. Eastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992)\n4. Standard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911)\n5. United States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940)",
     "document_name": [
-      "CCI Combination Guide.pdf"
+      "Bell Atlantic Corp. v. Twombly",
+      "Brown Shoe Co.",
+      "Eastman Kodak Co. v. Image Technical Services",
+      "Standard Oil Co. of New Jersey v. United States",
+      "United States v. Socony-Vacuum Oil Co."
     ],
-    "page_numbers": [
-      14
-    ],
-    "ground_truth": "The thresholds for notification are:\nAssets of the acquirer and target > INR 25 Billion; or\nRevenue of the acquirer and target > INR 75 Billion\n\n\nPristine's revenue in 2021 was INR 5 billion; and total assets were INR 10 billion. Therefore, even after adding the turnover and the asset figures of the target, a notification will not be required.",
-    "ground_truth_doc_ref": "CCI Combination Guide.pdf, p4\n1652423343024.pdf, p52\n1652423343024.pdf, p54",
+    "page_numbers": [],
+    "ground_truth": "There are 5 cases\nBell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007)\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992)\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911)\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940)\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962)",
+    "ground_truth_doc_ref": "Bell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007) .pdf\nBrown Shoe Co., Inc. v. United States, 370 U.S. 294 (1962) .pdf\nEastman Kodak Co. v. Image Technical Services, Inc., 504 U.S. 451 (1992) .pdf\nStandard Oil Co. of New Jersey v. United States, 221 U.S. 1 (1911) .pdf\nUnited States v. Socony-Vacuum Oil Co., Inc., 310 U.S. 150 (1940) .pdf",
     "source": "gemini",
     "scores": {
       "exact_match": false,
       "contains_truth": false,
-      "token_f1": 0.206,
+      "token_f1": 0.909,
+      "number_match": 1.0,
+      "key_term_match": 1.0,
+      "composite": 0.968
+    }
+  },
+  {
+    "question": "What is the governing law in the NVCA IRA?",
+    "answer": "Miscellaneous 32 6.1 Successors and Assigns 32 6.2 Governing Law 33 6.3 Counterparts 33 6.4 Titles and Subtitles 33 6.5 Notices 33 6.6 Amendments and Waivers 34 6.7 Severability 35 6.8 Aggregation of Stock 35 6.9 Additional Investors 35 6.10 Entire Agreement 35 6.11 Dispute Resolution 35 6.12 Delays or Omissions 41 Schedule A - Schedule of Investors [Schedule B - Schedule of Key Holders] [Exhibit A - Form of Noncompetition and Nonsolicitation Agreement] [AMENDED AND RESTATED] INVESTORS’ RIGHTS AGREEMENT THIS [AMENDED AND RESTATED] INVESTORS’ RIGHTS AGREEMENT (this “Agreement”), is made as of the [__] day of [___________, 20__], by and among [________], a [Delaware] corporation (the “Company”), [and] each of the investors listed on Schedule A hereto, each of which is referred to in this Agreement as an “Investor”[,and each of the stockholders listed on Schedule B hereto, each of whom is referred to herein as a “Key Holder”] [and any Additional Purchaser (as defined in the Purchase Agreement) that becomes a party to this Agreement in accordance with Uncertainty in the application, interpretation or implementation of any amendment to, or change in, governing law, regulation or policy, including by reason of an absence, or a limited body, of administrative or judicial precedent may be time consuming as well as costly for us to resolve and may impact the viability of our current business or restrict our ability to grow our businesses in the future. Alternative basis of interest or funding 25 9.5 Agent's role and confidentiality 25 10 Anti Money Laundering 26 11 Payments 27 11.1 No additional payment 27 11.2 FATCA 27 12 Fees 28 12.1 Commitment fee - Tranche 1 28 12.2 Commitment fee - Tranche 2and Tranche 3 29 12.3 Arranging fee 29 12.4 Participation fee 29 12.5 Agent's fees 29 13 Interest on Overdue Amounts 29 13.1 Accrual 29 13.2 Payment 30 https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 7/120 5/4/25, 6:55 PM Document DVAS 805415240v11 205151388 10.8.2023 page i https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 8/120 5/4/25, 6:55 PM Document Syndicated Facility Agreement Allens ><Linklaters https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 9/120 5/4/25, 6:55 PM Document 14 Break Costs 30 15 Assignments 30 15.1 Assignment by Borrowers 30 15.2 Assignment by Financiers 30 15.3 Securitisation and security over Financiers' rights 31 15.4 Substitution certificates 31 15.5 Change of Lending Office 32 15.6 No increased costs 32 15.7 New Borrower 32 16 Relations between Facility Agent and Financiers 32 16.1 Appointment of Facility Agent 32 16.2 Facility Agent's capacity 32 16.3 Facility Agent's obligations 33 16.4 Facility Agent's powers 33 16.5 Instructions to Facility Agent 33 16.6 Assumptions as to authority 34 16.7 Facility Agent's liability 34 16.8 Delegation 35 16.9 Distribution by Facility Agent 35 16.10 Facility Agent entitled to rely 35 16.11 Provision of information 35 16.12 Indemnity by Financiers 36 16.13 Independent appraisal by Financiers 36 16.14 Resignation and removal of Facility Agent 36 16.15 Institution of actions by Financiers 37 16.16 Identity of Financiers 38 16.17 Address for notices to the Facility Agent 38 16.18 Disenfranchisement for certain Debt Purchase Transactions 38 17 Facility Agent Dealings 39 18 Control Accounts 39 19 Proportionate Sharing 39 19.1 Sharing 39 https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 10/120 5/4/25, 6:55 PM Document DVAS 805415240v11 205151388 10.8.2023 page iii https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 11/120 5/4/25, 6:55 PM Document Syndicated Facility Agreement Allens ><Linklaters https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 12/120 5/4/25, 6:55 PM Document 19.2 Arrangements with unrelated parties 40 19.3 Unanticipated default 40 20 Public Offer 41 20.1 MLABs' representations, warranties and undertakings 41 20.2 Initial Borrower's confirmation 41 20.3 Financiers' representations and warranties 41 20.4 Information 42 20.5 Co-operation if Section 128F requirements not satisfied 42 21 Contractual Recognition of Bail-In 42 22 Recognition of Hong Kong Stay Powers 43 23 Privacy 44 24 Governing Law and Jurisdiction 44 25 Counterparts 44 26 Changes in respect of Published Rates 44 Schedule 1 48 Initial Borrower 48 Schedule 2 49 Part 1- Mandated Lead Arranger and Bookrunners (\"MLABs\") 49 Part 2 - MLABs, Mandated Lead Arrangers, Lead Arrangers, Arrangers and Initial Financiers and Commitments 50 Schedule 3 53 Initial conditions precedent 53 Schedule 4 Reference Rate Terms 55 US dollars - Term Rate Loans 53 US dollars -Compounded Rate Loans 58 Schedule 5 Daily Non-Cumulative Compounded RFR Rate 61 Schedule 6 Cumulative Compounded RFR Rate 63 Annexure A 91 Borrower Assumption Letter 91 Annexure B 92 Funding Notice 92 Annexure C 94 https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 13/120 5/4/25, 6:55 PM Document DVAS 805415240v11 205151388 10.8.2023 page iv https://www.sec.gov/Archives/edgar/data/1564708/000156470823000547/ex101-foxtelxsyndicatedfac.htm 14/120 5/4/25, 6:55 PM Document Syndicated Facility Agreement Allens ><Linklaters Selection Notice applicable",
+    "document_name": [
+      "Foxtel Management Pty Limited_130.pdf",
+      "NVCA-Model-Document-Investor-Rights-Agreement.docx",
+      " DEF 14A - 04_11_2024 - Exxon Mobil Corporation.pdf",
+      "1649061896992.PDF"
+    ],
+    "page_numbers": [
+      1,
+      2,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      19,
+      20,
+      59
+    ],
+    "ground_truth": "Delaware",
+    "ground_truth_doc_ref": "NVCA-Model-Document-Investor-Rights-Agreement.docx, p36",
+    "source": "extractive",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": true,
+      "token_f1": 0.0,
       "number_match": 0.0,
-      "key_term_match": 0.143,
-      "composite": 0.206
+      "key_term_match": 1.0,
+      "composite": 0.9
+    }
+  },
+  {
+    "question": "If Pristine were to acquire an indian company that had turnover of 1Cr and no assets, would it have to notify the deal to the CCI?",
+    "answer": "The Competition (Minimum Value of Assets or Turnover) Rules, 2024 crystalize the de-minimis exemption and The Commission can impose a penalty of up to 1% of the stipulate that under section 5(e) of the Act (Combination), total turnover or value of assets, whichever is higher, of an acquisition, control, merger or amalgamation does not the combination for failure to notify the Commission. company has assets of the value of not more than INR 4.5 billion in India or turnover of not more than INR 12.5 The determination of joint control is case-specific and billion in India, from the filing requirement (“Target requires a careful evaluation of the relevant statutory and Exemption“). Transaction Value Threshold: In addition to the aforesaid ‘Turnover’ under the Act means the turnover certified by assets/value thresholds, all transactions where the the statutory auditor on the basis of the last available transaction value exceeds INR 20 billion and local nexus audited accounts of the company in the financial year requirement are met, prior approval of the Commission immediately preceding the financial year in which the will have to be taken.",
+    "document_name": [
+      "CCI Combination Guide.pdf"
+    ],
+    "page_numbers": [
+      2,
+      3,
+      4,
+      5,
+      14
+    ],
+    "ground_truth": "The thresholds for notification are:\nAssets of the acquirer and target > INR 25 Billion; or\nRevenue of the acquirer and target > INR 75 Billion\n\n\nPristine's revenue in 2021 was INR 5 billion; and total assets were INR 10 billion. Therefore, even after adding the turnover and the asset figures of the target, a notification will not be required.",
+    "ground_truth_doc_ref": "CCI Combination Guide.pdf, p4\n1652423343024.pdf, p52\n1652423343024.pdf, p54",
+    "source": "extractive",
+    "scores": {
+      "exact_match": false,
+      "contains_truth": false,
+      "token_f1": 0.201,
+      "number_match": 0.111,
+      "key_term_match": 0.429,
+      "composite": 0.238
     }
   }
 ]
